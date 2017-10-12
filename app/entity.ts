@@ -1,10 +1,13 @@
+import {EventEmitter} from 'events';
+
 import Event from './event';
+import SourceEvent from './source-event';
 import Snapshot from './snapshot';
 import {cloneDeep} from 'lodash';
 
-export default abstract class Entity {
+export default abstract class Entity extends EventEmitter {
   [key:string]: any;
-  public __eventsToEmit: Array<Event>;
+  public __eventsToEmit: Array<SourceEvent>;
   public __replaying: boolean;
   public __snapshotVersion: number;
   public __timestamp: number;
@@ -14,6 +17,7 @@ export default abstract class Entity {
 
 
   constructor() {
+    super();
     this.__eventsToEmit = [];
     this.__replaying = false;
     this.__version = 0;
@@ -21,21 +25,41 @@ export default abstract class Entity {
     this.__timestamp = Date.now();
   }
 
-
-  public init(snapshot: Snapshot, events: Array<Event>): Entity {
+  public emit(name: string|symbol, ...args: any[]): void {
+    if (this.__replaying) {
+      return;
+    }
+    super.emit(name, ...args);
+  }
+  
+  public replay(snapshot: Snapshot, events: Array<SourceEvent>): Entity {
+    this.__replaying = true;
     if (snapshot) {
       this.applySnapshot(snapshot);
     }
     if (events) {
-
+      this.applyEvents(events);
     }
-
+    this.__replaying = false;
+    
     return this;
   }
 
   private applyEvents(events: Array<Event>): Entity {
     events.forEach(event => {
       this.digest(event);
+
+      if (this.__replaying) {
+        return;
+      }
+
+      this.__version++;
+      const sourceEvent = new SourceEvent();
+      sourceEvent.name = event.name;
+      sourceEvent.payload = event.payload;
+      sourceEvent.version = this.__version;
+      sourceEvent.timestamp = Date.now();
+      this.__eventsToEmit.push(sourceEvent);
     });
 
     return this;
@@ -50,15 +74,15 @@ export default abstract class Entity {
   }
 
   public snapshot(): any {
-    const plainObject = cloneDeep(this);
+    const plainObject = JSON.parse(
+      JSON.stringify(this)
+    );
     delete plainObject.__eventsToEmit;
     delete plainObject.__replaying;
     delete plainObject.__snapshotVersion;
     delete plainObject.__timestamp;
     delete plainObject.__version;
-    return JSON.parse(
-      JSON.stringify(plainObject)
-    );
+    return new Snapshot(this.__version, plainObject);
   }
 
 }

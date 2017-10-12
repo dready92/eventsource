@@ -10,7 +10,7 @@ module.exports = function(grunt) {
         options: {
           compilers: ['ts:ts-node/register', 'tsx:ts-node/register']
         },
-        src: ['app/**/*.spec.ts'],
+        src: ['app/**/*.ts'],
       },
       omg: {
         options: {
@@ -18,7 +18,7 @@ module.exports = function(grunt) {
           inspect: true,
           'debug-brk': true
         },
-        src: ['app/**/*.spec.ts'],
+        src: ['app/**/*.ts'],
       }
     },
     clean: ['app/**/*js', 'app/**/*js.map', 'build/*js', 'build/*js.map']

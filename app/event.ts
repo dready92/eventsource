@@ -5,6 +5,5 @@ class anyObject extends Object {
 
 export default class Event {
   public name: string;
-  public id: String;
   public payload: anyObject;
 }
